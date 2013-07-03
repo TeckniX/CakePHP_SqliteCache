@@ -68,8 +68,8 @@ class SqliteEngine extends CacheEngine {
 			), $settings)
 		);
     
-		if($return = $this->_connect()){
-			if($this->settings['autocreatetable']){
+		if ($return = $this->_connect()) {
+			if ($this->settings['autocreatetable']) {
 			  $this->_createCacheTable($this->settings['cachetable']);
 			}
 		}
@@ -140,17 +140,21 @@ EOD;
 		if (!is_int($value)) {
 			$value = serialize($value);
 		}
-		if($duration > 0){
+		if ($duration > 0) {
 			$expires = time() + $duration;
 		} else {
 			$expires = 0;
 		}
-    		$sql="INSERT INTO {$this->settings['cachetable']} (id,expire,value) VALUES ('$key', $expires, :value)";
+		if ($this->read($key) !== false) {
+			$sql="UPDATE {$this->settings['cachetable']} set value=:value, expire={$expires} WHERE id='$key'";
+		} else {
+			$sql="INSERT INTO {$this->settings['cachetable']} (id,expire,value) VALUES ('$key', $expires, :value)";
+		}
 		try {
 			$command = $this->_Sqlite->prepare($sql);
       			$command->bindValue(':value',$value, PDO::PARAM_LOB);
       			$return = $command->execute();
-		} catch(Exception $e) {
+		} catch (Exception $e) {
 			CakeLog::write('debug','Error in write: '.$e->getMessage());
 			$return = false;
 		}
@@ -167,13 +171,15 @@ EOD;
 		$time=time();
 		$sql="SELECT value FROM {$this->settings['cachetable']} WHERE id='$key' AND (expire=0 OR expire>$time)";
 		$command = $this->_Sqlite->prepare($sql);
-		$command->execute();
-		$value = $command->fetchColumn();
-		if (ctype_digit($value)) {
-			$value = (int)$value;
-		}
-		if ($value !== false && is_string($value)) {
-			$value = unserialize($value);
+		$value = $command->execute();
+		if ($value) {
+			$value = $command->fetchColumn();
+			if (ctype_digit($value)) {
+				$value = (int)$value;
+			}
+			if ($value !== false && is_string($value)) {
+				$value = unserialize($value);
+			}
 		}
 		return $value;
 	}
@@ -214,7 +220,7 @@ EOD;
 			$offset = (int)$offset;
 			$sql="UPDATE {$this->settings['cachetable']} set value = value - {$offset} WHERE id='$key'";
 			$command = $this->_Sqlite->prepare($sql);
-			if($return = $command->execute()){
+			if ($return = $command->execute()) {
 				$return = $this->read($key);
 			}
 		} else {
