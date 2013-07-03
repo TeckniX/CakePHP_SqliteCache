@@ -18,6 +18,9 @@
  * @since         CakePHP(tm) v 2.2
  * @license       http://www.opensource.org/licenses/mit-license.php MIT License
  */
+ 
+App::uses('CacheEngine', 'Cache');
+App::uses('CakeLog', 'Log');
 
 /**
  * Sqlite storage engine for cache.
@@ -65,11 +68,11 @@ class SqliteEngine extends CacheEngine {
 			), $settings)
 		);
     
-    if($return = $this->_connect()){
-      if($this->settings['autocreatetable']){
-          $this->_createCacheTable($this->settings['cachetable']);
-      }
-    }
+		if($return = $this->_connect()){
+			if($this->settings['autocreatetable']){
+			  $this->_createCacheTable($this->settings['cachetable']);
+			}
+		}
 
 		return $return;
 	}
@@ -82,48 +85,48 @@ class SqliteEngine extends CacheEngine {
 	protected function _connect() {
 		$return = false;
 		try {
-			if (empty($this->settings['persistent'])) {
-			  $this->_Sqlite = new PDO('sqlite:'. CACHE . $this->settings['sqlfile'], false, false,array(
-          PDO::ATTR_PERSISTENT => true
-        ));
-			} else {
-			  $this->_Sqlite = new PDO('sqlite:'. CACHE . $this->settings['sqlfile'], false, false,array(
-          PDO::ATTR_PERSISTENT => $this->settings['persistent']
-        ));      
-			}
-      $return = $this->_Sqlite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-      
+		if (empty($this->settings['persistent'])) {
+			$this->_Sqlite = new PDO('sqlite:'. CACHE . $this->settings['sqlfile'], false, false,array(
+				PDO::ATTR_PERSISTENT => true
+			));
+		} else {
+			$this->_Sqlite = new PDO('sqlite:'. CACHE . $this->settings['sqlfile'], false, false,array(
+				PDO::ATTR_PERSISTENT => $this->settings['persistent']
+			));      
+		}
+		$return = $this->_Sqlite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		
 		} catch (PDOException $e) {
-		  CakeLog::write('debug','Error in connection: '.$e->getMessage());
+			CakeLog::write('debug','Error in connection: '.$e->getMessage());
 			return false;
 		}
 		return $return;
 	}
   
-  protected function _createCacheTable($tableName){
-    $sql="DELETE FROM {$this->settings['cachetable']} WHERE expire>0 AND expire<".time();
-    try {
-      $this->_Sqlite->exec($sql);
-    } catch(Exception $e){
-        $sql=<<<EOD
+	protected function _createCacheTable($tableName){
+		$sql="DELETE FROM {$this->settings['cachetable']} WHERE expire>0 AND expire<".time();
+		try {
+			$this->_Sqlite->exec($sql);
+		} catch(Exception $e){
+			$sql=<<<EOD
 CREATE TABLE $tableName
 (
-  id CHAR(128) PRIMARY KEY,
-  expire INTEGER,
-  value $blob
+id CHAR(128) PRIMARY KEY,
+expire INTEGER,
+value $blob
 )
 EOD;
-      $this->_Sqlite->exec($sql);
-    }
-    
-  }
+		$this->_Sqlite->exec($sql);
+		}
+	
+	}
   
-  /**
-   * Removes the expired data values.
-   */
-  public function gc(){
-    $this->_Sqlite->exec("DELETE FROM {$this->cacheTableName} WHERE expire>0 AND expire<".time());
-  }
+/**
+* Removes the expired data values.
+*/
+	public function gc(){
+		$this->_Sqlite->exec("DELETE FROM {$this->cacheTableName} WHERE expire>0 AND expire<".time());
+	}
 
 /**
  * Write data for key into cache.
@@ -137,21 +140,21 @@ EOD;
 		if (!is_int($value)) {
 			$value = serialize($value);
 		}
-    if($duration > 0){
-      $expires = time() + $duration;
-    } else {
-      $expires = 0;
-    }
-    $sql="INSERT INTO {$this->settings['cachetable']} (id,expire,value) VALUES ('$key', $expires, :value)";
-		try {
-		  $command = $this->_Sqlite->prepare($sql);
-      $command->bindValue(':value',$value, PDO::PARAM_LOB);
-      $return = $command->execute();
-		} catch(Exception $e) {
-		  CakeLog::write('debug','Error in write: '.$e->getMessage());
-		  $return = false;
+		if($duration > 0){
+			$expires = time() + $duration;
+		} else {
+			$expires = 0;
 		}
-    return $return;
+    		$sql="INSERT INTO {$this->settings['cachetable']} (id,expire,value) VALUES ('$key', $expires, :value)";
+		try {
+			$command = $this->_Sqlite->prepare($sql);
+      			$command->bindValue(':value',$value, PDO::PARAM_LOB);
+      			$return = $command->execute();
+		} catch(Exception $e) {
+			CakeLog::write('debug','Error in write: '.$e->getMessage());
+			$return = false;
+		}
+    		return $return;
 	}
 
 /**
@@ -161,10 +164,10 @@ EOD;
  * @return mixed The cached data, or false if the data doesn't exist, has expired, or if there was an error fetching it
  */
 	public function read($key) {
-	  $time=time();
-	  $sql="SELECT value FROM {$this->settings['cachetable']} WHERE id='$key' AND (expire=0 OR expire>$time)";
-    $command = $this->_Sqlite->prepare($sql);
-    $command->execute();
+		$time=time();
+		$sql="SELECT value FROM {$this->settings['cachetable']} WHERE id='$key' AND (expire=0 OR expire>$time)";
+		$command = $this->_Sqlite->prepare($sql);
+		$command->execute();
 		$value = $command->fetchColumn();
 		if (ctype_digit($value)) {
 			$value = (int)$value;
@@ -185,17 +188,17 @@ EOD;
  */
 	public function increment($key, $offset = 1) {
 		if (ctype_digit($offset)) {
-      $offset = (int)$offset;
-      $sql="UPDATE {$this->settings['cachetable']} set value = value + {$offset} WHERE id='$key'";
-      $command = $this->_Sqlite->prepare($sql);
-      if($return = $command->execute()){
-        $return = $this->read($key);
-      }
-    } else {
-      throw new CacheException(__d('cake_dev', 'Decrement offset is not of type int.'));
-    }
-    
-    return $return;
+			$offset = (int)$offset;
+			$sql="UPDATE {$this->settings['cachetable']} set value = value + {$offset} WHERE id='$key'";
+			$command = $this->_Sqlite->prepare($sql);
+			if($return = $command->execute()){
+				$return = $this->read($key);
+			}
+		} else {
+			throw new CacheException(__d('cake_dev', 'Decrement offset is not of type int.'));
+		}
+		
+		return $return;
 	}
 
 /**
@@ -207,18 +210,18 @@ EOD;
  * @throws CacheException when you try to decrement with compress = true
  */
 	public function decrement($key, $offset = 1) {
-	  if (ctype_digit($offset)) {
-      $offset = (int)$offset;
-      $sql="UPDATE {$this->settings['cachetable']} set value = value - {$offset} WHERE id='$key'";
-      $command = $this->_Sqlite->prepare($sql);
-      if($return = $command->execute()){
-        $return = $this->read($key);
-      }
-    } else {
-      throw new CacheException(__d('cake_dev', 'Decrement offset is not of type int.'));
-    }
+		if (ctype_digit($offset)) {
+			$offset = (int)$offset;
+			$sql="UPDATE {$this->settings['cachetable']} set value = value - {$offset} WHERE id='$key'";
+			$command = $this->_Sqlite->prepare($sql);
+			if($return = $command->execute()){
+				$return = $this->read($key);
+			}
+		} else {
+			throw new CacheException(__d('cake_dev', 'Decrement offset is not of type int.'));
+		}
 		
-    return $return;
+		return $return;
 	}
 
 /**
@@ -228,7 +231,7 @@ EOD;
  * @return boolean True if the value was successfully deleted, false if it didn't exist or couldn't be removed
  */
 	public function delete($key) {
-	  $sql="DELETE FROM {$this->settings['cachetable']} WHERE id='$key'";
+		$sql="DELETE FROM {$this->settings['cachetable']} WHERE id='$key'";
 		return $this->_Sqlite->exec($sql) > 0;
 	}
 
@@ -278,4 +281,3 @@ EOD;
 	}
 
 }
-
